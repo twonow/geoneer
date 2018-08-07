@@ -99,7 +99,7 @@ const layers = [
                 VERSION: '1.1.0'
             },
             serverType: 'mapserver',
-            url: 'http://localhost:8080/geoserver/wafer/wms'
+            url: 'http://35.194.126.109:8080/geoserver/wafer/wms'
         })
     })
 ];
