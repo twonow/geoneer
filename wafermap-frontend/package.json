@@ -1,22 +1,20 @@
 {
-  "name": "wafermap-pjt",
+  "name": "wafermap-frontend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "license": "UNLICENSED",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "parcel index.html",
-    "build": "parcel build --public-url . index.html"
+    "build": "webpack --config webpack.config.js --mode production",
+    "start": "yarn run webpack:dev",
+    "webpack:dev": "yarn run webpack-dev-server --config webpack.config.js --progress --inline --hot --profile --port=1234 --host 0.0.0.0 --watch-content-base",
+    "webpack-dev-server": "node --max_old_space_size=4096 node_modules/webpack-dev-server/bin/webpack-dev-server.js",
+    "webpack": "node --max_old_space_size=4096 node_modules/webpack/bin/webpack.js"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@camptocamp/cesium": "^1.47.0",
     "ol": "^5.1.3",
-    "olcs": "0.0.12",
-    "proj4": "^2.4.4"
-  },
-  "devDependencies": {
-    "parcel-bundler": "^1.9.7"
+    "webpack": "^4.16.5",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5"
   }
 }
