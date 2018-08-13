@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>3D Wafer Map Pilot!</title>
+    <script src="../Build/Cesium/Cesium.js"></script>
+    <link href="../Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <link href="../Build/Cesium/Widgets/lighter.css" rel="stylesheet" />
+    <style>
+        @import url(../Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css);
+
+        #cesiumContainer {
+            width: 600px;
+            height: 600px;
+            border: 1px solid #000000;
+        }
+
+        #pan-to-centerpoint,
+        #look-down,
+        #add,
+        #addDie,
+        #reset {
+            background-color: #006fff;
+            /* Green */
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: scroll;
+        }
+
+
+        #wrapper {
+            width: 600px;
+        }
+
+
+        #timeControlsContainer {
+            width: 600px;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cesiumContainer"></div>
+    <div id="wrapper">
+
+        <button id="pan-to-centerpoint">원위치</button>
+        <input type="button" id="add" value="Add Defect" />
+        <input type="button" id="addDie" value="Add DIES" />
+        <input type="button" id="reset" value="초기화" />
+        <br/>
+        <!--button id="look-down" >Look Down</button>   
+   <button id="look-up" >look Up</button-->
+    </div>
+    <div class="cesium-lighter" id="timeControlsContainer"></div>
+
+
+
+
+
+    <script>
+
+        const dieSizeX = 0.02, dieSizeY = 0.02;
+
+        const baseMapMinXY = [-5.4977597552251947, 1.1908671019085781];
+        const baseMapMaxXY = [-4.4328705800637502, 2.2557562770700228];
+
+
+        //const centerpoint = [-4.90, 1.68];
+        const centerpoint = [(baseMapMaxXY[0] + baseMapMinXY[0]) / 2, (baseMapMaxXY[1] + baseMapMinXY[1]) / 2];
+        const waferDiameterBase = 0.3; //30 cm 를 미터로
+
+        // 원의 지름 길이가 30 cm 라고 생각할 때 배율을 nano meter 로 환산함 
+        const mapSizeRatio = waferDiameterBase / (baseMapMaxXY[0] - baseMapMinXY[0]) * 1000000000;
+        const dieSize = [(baseMapMaxXY[0] - baseMapMinXY[0]) / 20, (baseMapMaxXY[0] - baseMapMinXY[0]) / 36]; //가로 20개, 세로 36개
+
+        const initZoom = 9;
+
+
+        const r2 = Math.pow((baseMapMaxXY[0] - baseMapMinXY[0]) / 2, 2);
+
+        var rectangle = Cesium.Rectangle.fromDegrees(baseMapMinXY[0] - 0.1, baseMapMinXY[1] - 0.1, baseMapMaxXY[0] + 0.1, baseMapMaxXY[1] + 0.1);
+
+
+        var viewer = new Cesium.Viewer('cesiumContainer', {
+            resolutionScale: 0.25,
+            animation: false,
+            baseLayerPicker: false,
+            timeline: false,
+            homeButton: false,
+            selectionIndicator: true,
+            infoBox: true,
+            vrButton: false,
+            geocoder: false,
+            maximumRenderTimeChange: Infinity
+            //            baseLayerPicker : false,
+            //                        sceneMode : Cesium.SceneMode.COLUMBUS_VIEW,
+            //                        mapProjection : new Cesium.WebMercatorProjection()
+        });
+        var url = 'http://35.194.126.109:8080/geoserver/wms'; //Geoserver URL
+        var layers = viewer.scene.globe.imageryLayers;
+        layers.removeAll();
+        layers.addImageryProvider(new Cesium.WebMapServiceImageryProvider({
+            url: url,
+            layers: 'wafer:waferGroup4'   // Here just give layer name
+        }));
+
+        //Sandcastle.finishedLoading();
+
+        var scene = viewer.scene;
+        var primitives = scene.primitives;
+
+
+        function goFirst() {
+            viewer.camera.flyTo({
+                destination: rectangle,
+                //        destination :  Cesium.Cartesian3.fromDegrees(-4.79, 1.25, 10000.0),
+                //        orientation : {
+                //        direction : new Cesium.Cartesian3(-0.04, -0.20, -0.978),
+                //        up : new Cesium.Cartesian3(-0.47934589305293746, -0.8553216253114552, 0.1966022179118339)
+                //        },
+                duration: 1
+            });
+        }
+
+
+        // 클릭시 초기 위치
+
+        function onClick(id, callback) {
+            document.getElementById(id).addEventListener('click', callback);
+        }
+
+
+
+        onClick('pan-to-centerpoint', function () {
+            goFirst();
+        });
+        // onClick('look-down', function() {
+        //    viewer.camera.lookDown();    
+        // });      
+
+
+        // Show the rectangle.  Not required; just for show.
+
+
+        goFirst();
+
+
+
+
+
+
+        var adjX = baseMapMinXY[0];  // - centerpoint[0]; //+0.1
+        var adjY = baseMapMinXY[1];  //- centerpoint[1];   //+0.1     
+
+
+        // 점표시
+        var i = 1;
+        var points = new Cesium.PointPrimitiveCollection();
+        primitives.add(points);
+
+        document.getElementById('add').addEventListener('click', function (evt) {
+            const defCount = 20000;
+            for (var k = 0; k < defCount; k++) {
+                var pos = [Math.random() + (-5.45), Math.random() + (1.23)];
+                //points = primitives.add(new Cesium.PointPrimitiveCollection());
+
+                if (Math.pow(pos[0] - centerpoint[0], 2) + Math.pow(pos[1] - centerpoint[1], 2) < r2) {
+                    // 방법1 : 빠르지만 id 값 표출 방안 찾아야 함
+                    //            points.add({
+                    //                position : new Cesium.Cartesian3.fromDegrees(pos[0], pos[1], 0),
+                    //                color : Cesium.Color.RED,
+                    //                outlineColor : Cesium.Color.CRIMSON,
+                    //                outlineWidth : 2,
+                    //                pixelSize : 3.0,
+                    //                id : 'POINT_ID'+i+'_'+ k
+                    //
+                    //            });
+                    // 방법2: name 으로 infoBox 표출가능하나 대용량 표출 불가
+                    var diePoint = viewer.entities.add({
+                        name: 'POINT_ID' + i + '_' + k,
+                        position: new Cesium.Cartesian3.fromDegrees(pos[0], pos[1], 0),
+                        point: {
+                            color: Cesium.Color.ORANGERED,
+                            pixelSize: 4.0
+                        }
+                    });
+
+                }
+            }
+            i++;
+
+
+
+        });
+
+
+        // 지정된 범위의 정수 1개를 랜덤하게 반환하는 함수
+        // n1 은 "하한값", n2 는 "상한값"
+        function randomRange(n1, n2) {
+            return Math.floor((Math.random() * (n2 - n1 + 1)) + n1);
+        }
+
+
+        //도형 표시      
+        var x = 0;
+        document.getElementById('addDie').addEventListener('click', function (evt) {
+            //
+            //    var boxNum = 30;
+            //  
+            //    for (var k=0; k < boxNum ; k++) {
+            //        let i = randomRange(0,54);
+            //        let j = randomRange(0,54);
+            //        let dieSizeX = 0.02;
+            //        let dieSizeY = 0.02;
+            //        var maxCol;
+            //        
+            //         let coord = [adjX+ dieSizeX*i, adjY+ dieSizeY*j, adjX+ dieSizeX*i + dieSizeX, adjY+ dieSizeY*j+ dieSizeY];
+            //          if (Math.pow(adjX-centerpoint[0]+dieSizeX/2+dieSizeX*i, 2)+Math.pow( adjY-centerpoint[1]+dieSizeY/2+dieSizeY*j,2) < r2-dieSizeX) {
+
+            viewer.entities.removeAll();
+
+            for (var i = 0; i < 55; i++) {
+                for (var j = 0; j < 55; j++) {
+                    // x2 + y2 < r2 인 경우만 표시하게 해서 원안에 들어가게 함
+                    if (Math.pow(adjX - centerpoint[0] + dieSizeX / 2 + dieSizeX * i, 2) + Math.pow(adjY - centerpoint[1] + dieSizeY / 2 + dieSizeY * j, 2) < r2 - dieSizeX) {
+                        var coord = [adjX + dieSizeX * i, adjY + dieSizeY * j, adjX + dieSizeX * i + dieSizeX, adjY + dieSizeY * j + dieSizeY];
+
+                        let randomVal = randomRange(1, 20);
+                        let randomHeight = randomVal * 100 + 2000 * x;
+
+                        maxCol = new Cesium.Color(0.3 + 0.1 * x, randomVal / 30, 0.5, 1.0);
+
+                        var dieRectangle = viewer.entities.add({
+                            name: 'DIE_' + i + '_' + j,
+                            rectangle: {
+                                coordinates: Cesium.Rectangle.fromDegrees(coord[0], coord[1], coord[2], coord[3]),
+                                material: maxCol,
+                                height: randomHeight,
+                                extrudedHeight: 0,
+                                outline: true, // height must be set for outline to display
+                                outlineColor: Cesium.Color.BLACK
+                            }
+                        });
+                    }
+                }
+            }
+            x++;
+        });
+
+
+
+
+
+        document.getElementById('reset').addEventListener('click', function (evt) {
+
+            viewer.entities.removeAll();
+            //    viewer.scene.primitives.removeAll();
+            viewer.scene.primitives.remove(points);
+            points = new Cesium.PointPrimitiveCollection();
+            primitives.add(points);
+            //viewer.scene.primitives.show = false;
+
+            x = 0;
+            i = 1;
+            makeDies();
+        });
+
+
+        // 로고 지우고 새로 표시
+        viewer.scene.frameState.creditDisplay.destroy();
+        //var credit = new Cesium.Credit('SK Hynix', true);
+        //viewer.scene.frameState.creditDisplay.addDefaultCredit(credit) ;     
+
+        //성능 옵션 조정
+        viewer.scene.postProcessStages.fxaa = false;
+        viewer.scene.fxaaOrderIndependentTranslucency = false;
+
+
+        //DIE 그리기
+
+
+        function makeDies() {
+            //좌측 하단부터 그리기 시작    
+
+            for (var i = 0; i < 55; i++) {
+                for (var j = 0; j < 55; j++) {
+                    // x2 + y2 < r2 인 경우만 표시하게 해서 원안에 들어가게 함
+                    if (Math.pow(adjX - centerpoint[0] + dieSizeX / 2 + dieSizeX * i, 2) + Math.pow(adjY - centerpoint[1] + dieSizeY / 2 + dieSizeY * j, 2) < r2 - dieSizeX) {
+                        var coord = [adjX + dieSizeX * i, adjY + dieSizeY * j, adjX + dieSizeX * i + dieSizeX, adjY + dieSizeY * j + dieSizeY];
+
+
+                        var dieRectangle = viewer.entities.add({
+                            name: 'DIE_' + i + '_' + j,
+                            rectangle: {
+                                coordinates: Cesium.Rectangle.fromDegrees(coord[0], coord[1], coord[2], coord[3]),
+                                material: Cesium.Color.BLUE.withAlpha(0.1),
+                                height: 0.0,
+                                outline: true, // height must be set for outline to display
+                                outlineColor: Cesium.Color.BLACK
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+
+
+
+        makeDies();
+
+// InfoBox 에 표시
+
+//var ellipsoid = viewer.scene.globe.ellipsoid;
+//viewer.screenSpaceEventHandler.setInputAction(function(e) {
+//    var cartesian = viewer.camera.pickEllipsoid(e.position, ellipsoid);
+//    if (cartesian) {
+//        var cartographic = ellipsoid.cartesianToCartographic(cartesian);
+//        var longitudeString = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
+//        var latitudeString = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
+//
+//        console.log(longitudeString + ', ' + latitudeString);
+//        viewer.selectedEntity = new Cesium.Entity({
+//            description : longitudeString + ', ' + latitudeString
+//        });
+//    } else {
+//        viewer.selectedEntity = undefined;
+//    }
+//}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
+    </script>
+
+
+</body>
+
+</html>
