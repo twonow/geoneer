@@ -1062,7 +1062,7 @@ const clusters = new VectorLayer({
 
 onClick('enable', function () {
 
-    window.open('http://' + location.hostname + ':8090/Apps/index3d.html', '3DViewWaferMap');
+    window.open('http://35.200.29.245:8090/Apps/index3d.html', '3DViewWaferMap');
 
 
 
