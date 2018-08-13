@@ -19,4 +19,4 @@ COPY index.html ./
 COPY server.js ./
 
 EXPOSE 8090 
-CMD [ "node", "server.js" ]
+CMD [ "node", "server.js", "--public" ]
