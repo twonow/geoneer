@@ -13,7 +13,10 @@ COPY Build ./Build
 COPY Source ./Source
 COPY Specs ./Specs
 COPY ThirdParty ./ThirdParty
-ADD ./* ./
+COPY favicon.ico ./
+COPY gulpfile.js ./
+COPY index.html ./
+COPY server.js ./
 
-EXPOSE 8080 
+EXPOSE 8090 
 CMD [ "node", "server.js" ]
